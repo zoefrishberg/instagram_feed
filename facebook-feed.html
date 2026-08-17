@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Facebook Feed Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: #e8e8ed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
+  }
+
+  .phone {
+    width: 320px;
+    background: #1c1c1e;
+    border-radius: 44px;
+    padding: 12px;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.4),
+      0 8px 20px rgba(0,0,0,0.25),
+      inset 0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .phone-inner {
+    background: #f0f2f5;
+    border-radius: 34px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 580px;
+  }
+
+  .status-bar {
+    background: #fff;
+    padding: 14px 24px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1c1c1e;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .signal { display: flex; gap: 2px; align-items: flex-end; }
+  .bar { background: #1c1c1e; width: 3px; border-radius: 0.5px; }
+  .wifi-icon { font-size: 11px; }
+  .battery { width: 22px; height: 11px; border: 1.5px solid #1c1c1e; border-radius: 2px; position: relative; padding: 1.5px; }
+  .battery::after { content: ''; position: absolute; right: -5px; top: 2.5px; width: 2px; height: 6px; background: #1c1c1e; border-radius: 0 1.5px 1.5px 0; }
+  .battery-fill { background: #1c1c1e; height: 100%; width: 70%; border-radius: 1px; }
+
+  :root {
+    --fb-blue: #1877f2;
+    --fb-bg: #f0f2f5;
+    --fb-card: #ffffff;
+    --fb-text: #050505;
+    --fb-text-secondary: #65676b;
+    --fb-divider: #ced0d4;
+    --fb-hover: #f2f2f2;
+  }
+
+  .fb-top-nav {
+    background: var(--fb-card);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px 8px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--fb-divider);
+  }
+  .fb-logo { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 800; color: var(--fb-blue); letter-spacing: -0.8px; }
+  .fb-nav-icons { display: flex; gap: 10px; align-items: center; }
+  .fb-icon-circle {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #e4e6eb;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .fb-icon-circle svg { width: 16px; height: 16px; }
+
+  .feed-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .feed-scroll::-webkit-scrollbar { width: 3px; }
+  .feed-scroll::-webkit-scrollbar-thumb { background: #d1d1d6; border-radius: 2px; }
+
+  .fb-card { background: var(--fb-card); margin-bottom: 8px; }
+
+  /* Composer */
+  .composer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+  }
+  .composer img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .composer .composer-input {
+    flex: 1;
+    border: 1px solid var(--fb-divider);
+    border-radius: 18px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--fb-text-secondary);
+    cursor: text;
+  }
+  .composer svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  /* Stories */
+  .fb-stories {
+    display: flex; gap: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .fb-stories::-webkit-scrollbar { display: none; }
+  .fb-story-card {
+    flex-shrink: 0;
+    width: 90px; height: 140px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    background: #ddd;
+  }
+  .fb-story-card > img.story-bg { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .fb-story-card .story-avatar-ring {
+    position: absolute; top: 8px; left: 8px;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid var(--fb-blue);
+    overflow: hidden;
+  }
+  .fb-story-card .story-avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+  .fb-story-card .story-label {
+    position: absolute; bottom: 6px; left: 6px; right: 6px;
+    color: #fff; font-size: 10px; font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  }
+  .fb-story-card .story-shade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); }
+  .fb-story-card.create-story { background: var(--fb-card); }
+  .fb-story-card.create-story .cs-img { height: 96px; width: 100%; object-fit: cover; display: block; }
+  .fb-story-card.create-story .cs-plus {
+    position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--fb-blue); color: #fff;
+    border: 3px solid var(--fb-card);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; line-height: 1;
+  }
+  .fb-story-card.create-story .cs-label {
+    position: absolute; bottom: 8px; left: 0; right: 0;
+    text-align: center; font-size: 10px; font-weight: 600; color: var(--fb-text);
+  }
+
+  /* Posts */
+  .post-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 10px 12px 6px; }
+  .post-user { display: flex; align-items: center; gap: 8px; }
+  .post-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+  .post-name-block { display: flex; flex-direction: column; }
+  .post-name { font-size: 12.5px; font-weight: 600; color: var(--fb-text); }
+  .verified-badge { display: inline-flex; vertical-align: middle; margin-left: 3px; }
+  .verified-badge svg { width: 11px; height: 11px; }
+  .post-meta { font-size: 10.5px; color: var(--fb-text-secondary); display: flex; align-items: center; gap: 3px; margin-top: 1px; }
+  .post-meta svg { width: 10px; height: 10px; }
+  .post-header-actions { display: flex; gap: 12px; align-items: center; }
+  .post-header-actions svg { width: 16px; height: 16px; cursor: pointer; }
+
+  .post-text { padding: 0 12px 8px; font-size: 12.5px; line-height: 1.45; color: var(--fb-text); }
+  .post-image { width: 100%; display: block; }
+
+  /* ── Branded ad slide (matches the Instagram Stories ad) ── */
+  .ad-slide {
+    width: 100%; aspect-ratio: 1 / 1;
+    background: linear-gradient(160deg, #405DE6 0%, #833AB4 30%, #E1306C 60%, #F77737 85%, #FCAF45 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; text-align: center; padding: 0 24px;
+  }
+  .ad-slide .ad-glyph {
+    width: 52px; height: 52px;
+    border: 3.5px solid #fff; border-radius: 15px;
+    position: relative; margin-bottom: 2px;
+  }
+  .ad-slide .ad-glyph::before {
+    content: '';
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 21px; height: 21px;
+    border: 3.5px solid #fff; border-radius: 50%;
+  }
+  .ad-slide .ad-glyph::after {
+    content: '';
+    position: absolute; top: 5px; right: 5px;
+    width: 5px; height: 5px;
+    background: #fff; border-radius: 50%;
+  }
+  .ad-slide .ad-headline { color: #fff; font-size: 19px; font-weight: 800; line-height: 1.3; text-shadow: 0 1px 6px rgba(0,0,0,0.15); }
+  .ad-slide .ad-sub { color: rgba(255,255,255,0.92); font-size: 11.5px; line-height: 1.5; }
+
+  /* Sponsored CTA link box */
+  .cta-box {
+    background: #f0f2f5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .cta-box .cta-info { min-width: 0; }
+  .cta-box .cta-domain { font-size: 10px; color: var(--fb-text-secondary); text-transform: uppercase; letter-spacing: 0.2px; }
+  .cta-box .cta-title { font-size: 12px; font-weight: 600; color: var(--fb-text); margin-top: 1px; }
+  .cta-box .cta-sub { font-size: 11px; color: var(--fb-text-secondary); margin-top: 1px; }
+  .cta-box button {
+    background: #e4e6eb; color: var(--fb-text); border: none;
+    border-radius: 6px; font-size: 12px; font-weight: 600;
+    padding: 8px 14px; cursor: pointer; flex-shrink: 0; margin-left: 10px;
+  }
+  .cta-box button:active { opacity: 0.8; }
+
+  /* Reactions summary */
+  .reaction-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 11px; color: var(--fb-text-secondary);
+  }
+  .reaction-icons { display: flex; align-items: center; gap: 4px; }
+  .reaction-bubbles { display: flex; }
+  .reaction-bubble {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+    border: 1.5px solid var(--fb-card);
+  }
+  .reaction-bubble.like-b { background: var(--fb-blue); }
+  .reaction-bubble.love-b { background: #f33e58; margin-left: -4px; }
+
+  .action-divider { height: 1px; background: var(--fb-divider); margin: 0 12px; }
+
+  .post-actions {
+    display: flex; align-items: center;
+    padding: 2px 4px;
+  }
+  .action-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 8px 0;
+    border: none; background: none; cursor: pointer;
+    font-size: 11.5px; font-weight: 600; color: var(--fb-text-secondary);
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .action-btn:active { background: var(--fb-hover); }
+  .action-btn svg { width: 16px; height: 16px; }
+  .action-btn.liked { color: var(--fb-blue); }
+  .action-btn.liked svg { fill: var(--fb-blue); stroke: var(--fb-blue); }
+
+  /* People you may know */
+  .pymk-section { padding: 10px 0 12px; }
+  .pymk-header { display: flex; justify-content: space-between; align-items: center; padding: 0 12px 8px; }
+  .pymk-header span { font-size: 12.5px; font-weight: 600; color: var(--fb-text); }
+  .pymk-header a { font-size: 11.5px; color: var(--fb-blue); text-decoration: none; font-weight: 500; }
+  .pymk-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 0 12px; scrollbar-width: none; }
+  .pymk-scroll::-webkit-scrollbar { display: none; }
+  .pymk-card {
+    flex-shrink: 0; width: 130px;
+    border: 1px solid var(--fb-divider); border-radius: 8px;
+    overflow: hidden;
+    background: var(--fb-card);
+    position: relative;
+  }
+  .pymk-card .pymk-close { position: absolute; top: 4px; right: 6px; background: rgba(0,0,0,0.4); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; z-index: 2; }
+  .pymk-card img { width: 100%; height: 100px; object-fit: cover; display: block; }
+  .pymk-card .pymk-body { padding: 6px 8px 8px; }
+  .pymk-card .pymk-name { font-size: 11.5px; font-weight: 600; color: var(--fb-text); }
+  .pymk-card .pymk-sub { font-size: 10px; color: var(--fb-text-secondary); margin: 2px 0 6px; }
+  .pymk-card .pymk-add {
+    width: 100%;
+    background: #e7f3ff; color: var(--fb-blue); border: none;
+    border-radius: 6px; font-size: 11px; font-weight: 600;
+    padding: 6px 0; cursor: pointer;
+    font-family: inherit;
+  }
+  .pymk-card .pymk-add:active { opacity: 0.8; }
+
+  .sponsored-label { display: flex; align-items: center; gap: 3px; }
+
+  .fb-bottom-nav {
+    background: var(--fb-card);
+    border-top: 1px solid var(--fb-divider);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 8px 0 10px;
+    flex-shrink: 0;
+  }
+  .fb-bottom-nav svg { width: 22px; height: 22px; }
+  .fb-bottom-nav .nav-item { position: relative; }
+  .fb-bottom-nav .nav-badge {
+    position: absolute; top: -4px; right: -6px;
+    background: #e41e3f; color: #fff;
+    font-size: 8px; font-weight: 700;
+    border-radius: 8px; padding: 1px 4px;
+  }
+  .fb-bottom-nav .nav-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--fb-divider); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone-inner">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <div class="signal"><div class="bar" style="height:4px"></div><div class="bar" style="height:7px"></div><div class="bar" style="height:10px"></div><div class="bar" style="height:13px"></div></div>
+        <span class="wifi-icon">&#8984;</span>
+        <div class="battery"><div class="battery-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="fb-top-nav">
+      <span class="fb-logo">facebook</span>
+      <div class="fb-nav-icons">
+        <div class="fb-icon-circle"><svg fill="none" stroke="#050505" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        <div class="fb-icon-circle"><svg fill="none" stroke="#050505" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+        <div class="fb-icon-circle"><svg viewBox="0 0 24 24" fill="#050505"><path d="M12 2C6.48 2 2 6.15 2 11.26c0 2.9 1.44 5.49 3.69 7.19V22l3.38-1.85c.9.25 1.86.38 2.93.38 5.52 0 10-4.15 10-9.27C22 6.15 17.52 2 12 2zm1.06 12.47l-2.56-2.73-4.99 2.73 5.49-5.83 2.62 2.73 4.93-2.73-5.49 5.83z"/></svg></div>
+      </div>
+    </div>
+
+    <div class="feed-scroll">
+
+      <!-- Composer -->
+      <div class="fb-card">
+        <div class="composer">
+          <img src="assets/avatar-sofia.jpg" alt="">
+          <div class="composer-input">What's on your mind?</div>
+          <svg fill="none" stroke="#45bd62" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+      </div>
+
+      <!-- Stories -->
+      <div class="fb-card">
+        <div class="fb-stories">
+          <div class="fb-story-card create-story">
+            <img class="cs-img" src="assets/avatar-sofia.jpg" alt="">
+            <div class="cs-plus">+</div>
+            <div class="cs-label">Create story</div>
+          </div>
+          <div class="fb-story-card"><img class="story-bg" src="assets/story-brunch-selfie.jpg" alt=""><div class="story-shade"></div><div class="story-avatar-ring"><img src="assets/avatar-maddie.jpg" alt=""></div><div class="story-label">Maya Chen</div></div>
+          <div class="fb-story-card"><img class="story-bg" src="assets/story-concert.jpg" alt=""><div class="story-shade"></div><div class="story-avatar-ring"><img src="assets/avatar-jake.jpg" alt=""></div><div class="story-label">Jordan Rivera</div></div>
+          <div class="fb-story-card"><img class="story-bg" src="assets/story-coffee.jpg" alt=""><div class="story-shade"></div><div class="story-avatar-ring"><img src="assets/avatar-p3.jpg" alt=""></div><div class="story-label">Sam Okafor</div></div>
+          <div class="fb-story-card"><img class="story-bg" src="assets/story-rooftop-view.jpg" alt=""><div class="story-shade"></div><div class="story-avatar-ring"><img src="assets/avatar-sofia.jpg" alt=""></div><div class="story-label">Priya Patel</div></div>
+        </div>
+      </div>
+
+      <!-- POST 1 -->
+      <div class="fb-card">
+        <div class="post-header">
+          <div class="post-user">
+            <img class="post-avatar" src="assets/avatar-maddie.jpg" alt="">
+            <div class="post-name-block">
+              <span class="post-name">Maya Chen</span>
+              <span class="post-meta">4h · <svg viewBox="0 0 16 16" fill="#65676b"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm5.5 7c0 .6-.1 1.2-.3 1.8l-1.9-1.2c-.2-.1-.3-.3-.3-.5V7c0-.3-.2-.5-.5-.5H9c-.3 0-.5-.2-.5-.5v-.5c0-.3.2-.5.5-.5h1c.3 0 .5-.2.5-.5v-.6c1.8.8 3 2.6 3 4.6zM7 13.4c-2.5-.5-4.5-2.7-4.5-5.4 0-.4.1-.8.2-1.2l2.8 2.8c.2.2.5.4.8.4h.7c.3 0 .5.2.5.5v.5c0 .3.2.5.5.5v1.9z"/></svg></span>
+            </div>
+          </div>
+          <div class="post-header-actions">
+            <svg viewBox="0 0 24 24" fill="#65676b"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            <svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+        </div>
+        <div class="post-text">Weekend hike was exactly what I needed 🏔️ Sometimes you just have to log off and go outside.</div>
+        <img class="post-image" src="assets/fb-hike-trail.jpg" alt="">
+        <div class="reaction-row">
+          <div class="reaction-icons">
+            <div class="reaction-bubbles"><div class="reaction-bubble like-b">👍</div><div class="reaction-bubble love-b">❤️</div></div>
+            <span>Jordan Rivera and 214 others</span>
+          </div>
+          <span>32 comments · 4 shares</span>
+        </div>
+        <div class="action-divider"></div>
+        <div class="post-actions">
+          <button class="action-btn like-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>Like</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Comment</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>Share</button>
+        </div>
+      </div>
+
+      <!-- SPONSORED POST -->
+      <div class="fb-card">
+        <div class="post-header">
+          <div class="post-user">
+            <img class="post-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='%23FFDC80'/><stop offset='0.25' stop-color='%23F77737'/><stop offset='0.5' stop-color='%23E1306C'/><stop offset='0.75' stop-color='%23833AB4'/><stop offset='1' stop-color='%23405DE6'/></linearGradient></defs><rect width='100' height='100' fill='url(%23g)'/><g fill='none' stroke='white' stroke-width='6'><rect x='27' y='27' width='46' height='46' rx='13'/><circle cx='50' cy='50' r='11'/></g><circle cx='65' cy='35' r='3.5' fill='white'/></svg>" alt="">
+            <div class="post-name-block">
+              <span class="post-name">Instagram<span class="verified-badge"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#1877f2"/><path d="M17.5 28l-7-7 2.5-2.5 4.5 4.5 9.5-9.5 2.5 2.5z" fill="#fff"/></svg></span></span>
+              <span class="post-meta sponsored-label">Sponsored · <svg viewBox="0 0 16 16" fill="#65676b"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm5.5 7c0 .6-.1 1.2-.3 1.8l-1.9-1.2c-.2-.1-.3-.3-.3-.5V7c0-.3-.2-.5-.5-.5H9c-.3 0-.5-.2-.5-.5v-.5c0-.3.2-.5.5-.5h1c.3 0 .5-.2.5-.5v-.6c1.8.8 3 2.6 3 4.6zM7 13.4c-2.5-.5-4.5-2.7-4.5-5.4 0-.4.1-.8.2-1.2l2.8 2.8c.2.2.5.4.8.4h.7c.3 0 .5.2.5.5v.5c0 .3.2.5.5.5v1.9z"/></svg></span>
+            </div>
+          </div>
+          <div class="post-header-actions">
+            <svg viewBox="0 0 24 24" fill="#65676b"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            <svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+        </div>
+        <div class="post-text">Your feed, your way. Discover new features designed to help you connect with what matters most. ✨</div>
+        <div class="ad-slide"><div class="ad-glyph"></div><div class="ad-headline">Your feed,<br>your way. ✨</div><div class="ad-sub">Discover new features designed to help you connect with what matters most.</div></div>
+        <div class="cta-box">
+          <div class="cta-info">
+            <div class="cta-domain">about.instagram.com</div>
+            <div class="cta-title">See what's new on Instagram</div>
+            <div class="cta-sub">Your feed, your way</div>
+          </div>
+          <button>Learn More</button>
+        </div>
+        <div class="reaction-row">
+          <div class="reaction-icons">
+            <div class="reaction-bubbles"><div class="reaction-bubble like-b">👍</div><div class="reaction-bubble love-b">❤️</div></div>
+            <span>8.4K</span>
+          </div>
+          <span>412 comments · 96 shares</span>
+        </div>
+        <div class="action-divider"></div>
+        <div class="post-actions">
+          <button class="action-btn like-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>Like</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Comment</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>Share</button>
+        </div>
+      </div>
+
+      <!-- People you may know -->
+      <div class="fb-card">
+        <div class="pymk-section">
+          <div class="pymk-header"><span>People you may know</span><a href="#">See all</a></div>
+          <div class="pymk-scroll">
+            <div class="pymk-card"><button class="pymk-close">✕</button><img src="assets/avatar-p1.jpg" alt=""><div class="pymk-body"><div class="pymk-name">Alex Morgan</div><div class="pymk-sub">12 mutual friends</div><button class="pymk-add">Add friend</button></div></div>
+            <div class="pymk-card"><button class="pymk-close">✕</button><img src="assets/avatar-p6.jpg" alt=""><div class="pymk-body"><div class="pymk-name">Dana Kim</div><div class="pymk-sub">8 mutual friends</div><button class="pymk-add">Add friend</button></div></div>
+            <div class="pymk-card"><button class="pymk-close">✕</button><img src="assets/avatar-p4.jpg" alt=""><div class="pymk-body"><div class="pymk-name">Chris Delgado</div><div class="pymk-sub">3 mutual friends</div><button class="pymk-add">Add friend</button></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POST 3 -->
+      <div class="fb-card">
+        <div class="post-header">
+          <div class="post-user">
+            <img class="post-avatar" src="assets/avatar-p3.jpg" alt="">
+            <div class="post-name-block">
+              <span class="post-name">Sam Okafor</span>
+              <span class="post-meta">Yesterday at 6:12 PM · <svg viewBox="0 0 16 16" fill="#65676b"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm5.5 7c0 .6-.1 1.2-.3 1.8l-1.9-1.2c-.2-.1-.3-.3-.3-.5V7c0-.3-.2-.5-.5-.5H9c-.3 0-.5-.2-.5-.5v-.5c0-.3.2-.5.5-.5h1c.3 0 .5-.2.5-.5v-.6c1.8.8 3 2.6 3 4.6zM7 13.4c-2.5-.5-4.5-2.7-4.5-5.4 0-.4.1-.8.2-1.2l2.8 2.8c.2.2.5.4.8.4h.7c.3 0 .5.2.5.5v.5c0 .3.2.5.5.5v1.9z"/></svg></span>
+            </div>
+          </div>
+          <div class="post-header-actions">
+            <svg viewBox="0 0 24 24" fill="#65676b"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            <svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+        </div>
+        <div class="post-text">Finally finished the bookshelf build! Two months of weekends but totally worth it. 🔨📚</div>
+        <img class="post-image" src="assets/fb-bookshelf.jpg" alt="">
+        <div class="reaction-row">
+          <div class="reaction-icons">
+            <div class="reaction-bubbles"><div class="reaction-bubble like-b">👍</div><div class="reaction-bubble love-b">❤️</div></div>
+            <span>Maya Chen and 96 others</span>
+          </div>
+          <span>18 comments · 2 shares</span>
+        </div>
+        <div class="action-divider"></div>
+        <div class="post-actions">
+          <button class="action-btn like-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>Like</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Comment</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>Share</button>
+        </div>
+      </div>
+
+      <!-- POST 4 (text only) -->
+      <div class="fb-card">
+        <div class="post-header">
+          <div class="post-user">
+            <img class="post-avatar" src="assets/avatar-sofia.jpg" alt="">
+            <div class="post-name-block">
+              <span class="post-name">Priya Patel</span>
+              <span class="post-meta">2d · <svg viewBox="0 0 16 16" fill="#65676b"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm5.5 7c0 .6-.1 1.2-.3 1.8l-1.9-1.2c-.2-.1-.3-.3-.3-.5V7c0-.3-.2-.5-.5-.5H9c-.3 0-.5-.2-.5-.5v-.5c0-.3.2-.5.5-.5h1c.3 0 .5-.2.5-.5v-.6c1.8.8 3 2.6 3 4.6zM7 13.4c-2.5-.5-4.5-2.7-4.5-5.4 0-.4.1-.8.2-1.2l2.8 2.8c.2.2.5.4.8.4h.7c.3 0 .5.2.5.5v.5c0 .3.2.5.5.5v1.9z"/></svg></span>
+            </div>
+          </div>
+          <div class="post-header-actions">
+            <svg viewBox="0 0 24 24" fill="#65676b"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            <svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+        </div>
+        <div class="post-text">PSA: the farmers market on 5th has the best peaches right now. That's it, that's the post. 🍑</div>
+        <div class="reaction-row">
+          <div class="reaction-icons">
+            <div class="reaction-bubbles"><div class="reaction-bubble like-b">👍</div></div>
+            <span>41</span>
+          </div>
+          <span>9 comments</span>
+        </div>
+        <div class="action-divider"></div>
+        <div class="post-actions">
+          <button class="action-btn like-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>Like</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Comment</button>
+          <button class="action-btn"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>Share</button>
+        </div>
+      </div>
+
+      <div style="height: 8px;"></div>
+    </div>
+
+    <div class="fb-bottom-nav">
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="#1877f2"><path d="M22 23h-6.001a1 1 0 0 1-1-1v-5.455a2.997 2.997 0 1 0-5.993 0V22a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V11.543a1.002 1.002 0 0 1 .31-.724l10-9.543a1.001 1.001 0 0 1 1.38 0l10 9.543a1.002 1.002 0 0 1 .31.724V22a1 1 0 0 1-1 1z"/></svg></div>
+      <div class="nav-item"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+      <div class="nav-item"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+      <div class="nav-item"><svg fill="none" stroke="#65676b" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nav-badge">3</span></div>
+      <div class="nav-item"><img class="nav-avatar" src="assets/avatar-sofia.jpg" alt=""></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Like buttons toggle
+document.querySelectorAll('.like-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() { btn.classList.toggle('liked'); });
+});
+// Add friend buttons
+document.querySelectorAll('.pymk-add').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    if (btn.textContent === 'Add friend') { btn.textContent = 'Request sent'; btn.style.background = '#e4e6eb'; btn.style.color = '#65676b'; }
+    else { btn.textContent = 'Add friend'; btn.style.background = ''; btn.style.color = ''; }
+  });
+});
+// Remove pymk cards
+document.querySelectorAll('.pymk-close').forEach(function(btn) {
+  btn.addEventListener('click', function() { btn.closest('.pymk-card').style.display = 'none'; });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Instagram Stories Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: #e8e8ed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
+  }
+
+  .phone {
+    width: 320px;
+    background: #1c1c1e;
+    border-radius: 44px;
+    padding: 12px;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.4),
+      0 8px 20px rgba(0,0,0,0.25),
+      inset 0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .phone-inner {
+    background: #fff;
+    border-radius: 34px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 580px;
+    position: relative;
+  }
+
+  .status-bar {
+    background: #fff;
+    padding: 14px 24px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1c1c1e;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .signal { display: flex; gap: 2px; align-items: flex-end; }
+  .bar { background: #1c1c1e; width: 3px; border-radius: 0.5px; }
+  .wifi-icon { font-size: 11px; }
+  .battery { width: 22px; height: 11px; border: 1.5px solid #1c1c1e; border-radius: 2px; position: relative; padding: 1.5px; }
+  .battery::after { content: ''; position: absolute; right: -5px; top: 2.5px; width: 2px; height: 6px; background: #1c1c1e; border-radius: 0 1.5px 1.5px 0; }
+  .battery-fill { background: #1c1c1e; height: 100%; width: 70%; border-radius: 1px; }
+
+  :root {
+    --ig-bg: #ffffff;
+    --ig-border: #dbdbdb;
+    --ig-text: #262626;
+    --ig-text-secondary: #8e8e8e;
+    --ig-blue: #0095f6;
+    --ig-red: #ed4956;
+    --ig-story-gradient: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  }
+
+  .ig-top-nav {
+    background: var(--ig-bg);
+    border-bottom: 0.5px solid var(--ig-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px;
+    flex-shrink: 0;
+  }
+  .ig-top-nav .logo svg { height: 24px; }
+  .ig-top-nav .nav-icons { display: flex; gap: 16px; align-items: center; }
+  .ig-top-nav .nav-icons svg { width: 20px; height: 20px; }
+  .notif-dot { position: relative; }
+  .notif-dot::after { content: ''; position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; background: var(--ig-red); border-radius: 50%; border: 1px solid var(--ig-bg); }
+
+  .feed-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--ig-bg);
+  }
+  .feed-scroll::-webkit-scrollbar { width: 3px; }
+  .feed-scroll::-webkit-scrollbar-thumb { background: #d1d1d6; border-radius: 2px; }
+
+  .stories {
+    display: flex; gap: 10px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    border-bottom: 0.5px solid var(--ig-border);
+    scrollbar-width: none;
+  }
+  .stories::-webkit-scrollbar { display: none; }
+  .story-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; cursor: pointer; }
+  .story-ring { width: 52px; height: 52px; border-radius: 50%; padding: 2px; background: var(--ig-story-gradient); position: relative; }
+  .story-ring.seen { background: var(--ig-border); }
+  .story-ring.your-story { background: none; position: relative; }
+  .story-ring.your-story .story-plus { position: absolute; bottom: -1px; right: -1px; width: 16px; height: 16px; background: var(--ig-blue); border-radius: 50%; border: 1.5px solid var(--ig-bg); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
+  .story-avatar { width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--ig-bg); object-fit: cover; }
+  .story-name { font-size: 9px; color: var(--ig-text); max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+
+  /* Pulsing highlight on first story */
+  .story-ring.pulse-target::before {
+    content: '';
+    position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 2.5px solid var(--ig-blue);
+    animation: pulseRing 1.5s ease-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulseRing {
+    0%   { transform: scale(0.85); opacity: 1; }
+    70%  { transform: scale(1.15); opacity: 0; }
+    100% { transform: scale(1.15); opacity: 0; }
+  }
+
+  /* Instruction banner */
+  .tap-instruction {
+    margin: 10px;
+    background: #1c1c1e;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+    position: relative;
+  }
+  .tap-instruction::before {
+    content: '';
+    position: absolute; top: -6px; left: 85px; /* aligned under the first tappable story (nat.geo), not "Your story" */
+    width: 12px; height: 12px;
+    background: #1c1c1e;
+    transform: rotate(45deg);
+  }
+  .tap-instruction .ti-emoji { font-size: 20px; animation: bounceUp 1.2s ease-in-out infinite; }
+  @keyframes bounceUp {
+    0%, 100% { transform: translateY(2px); }
+    50% { transform: translateY(-4px); }
+  }
+  .tap-instruction .ti-text { font-size: 12px; line-height: 1.45; }
+  .tap-instruction .ti-text b { font-weight: 700; }
+
+  .post { border-bottom: 0.5px solid var(--ig-border); }
+  .post-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; }
+  .post-user { display: flex; align-items: center; gap: 8px; }
+  .post-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 0.5px solid var(--ig-border); }
+  .post-username { font-size: 11.5px; font-weight: 600; color: var(--ig-text); }
+  .post-location { font-size: 9.5px; color: var(--ig-text); font-weight: 400; }
+  .post-more svg { width: 16px; height: 16px; }
+  .post-image { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
+  .post-actions { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px 0; }
+  .post-actions-left { display: flex; gap: 12px; align-items: center; }
+  .post-actions svg { width: 20px; height: 20px; cursor: pointer; }
+  .post-body { padding: 0 10px 10px; }
+  .post-likes { font-size: 11.5px; font-weight: 600; padding: 4px 0 3px; }
+  .post-caption { font-size: 11.5px; line-height: 1.4; margin-bottom: 3px; }
+  .post-caption .cap-user { font-weight: 600; margin-right: 3px; }
+  .post-caption .hashtag { color: #00376b; }
+  .post-comments-link { font-size: 11px; color: var(--ig-text-secondary); margin-bottom: 2px; }
+  .post-time { font-size: 9px; color: var(--ig-text-secondary); text-transform: uppercase; letter-spacing: 0.2px; margin-top: 2px; }
+
+  .ig-bottom-nav {
+    background: var(--ig-bg);
+    border-top: 0.5px solid var(--ig-border);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 6px 0 10px;
+    flex-shrink: 0;
+  }
+  .ig-bottom-nav svg { width: 20px; height: 20px; }
+  .ig-bottom-nav .nav-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 0.5px solid var(--ig-border); }
+
+  /* ══════════ STORY VIEWER ══════════ */
+  .story-viewer {
+    display: none;
+    position: absolute; inset: 0;
+    background: #000;
+    z-index: 200;
+    flex-direction: column;
+  }
+  .story-viewer.open { display: flex; }
+
+  .sv-progress {
+    display: flex; gap: 3px;
+    padding: 12px 10px 0;
+    flex-shrink: 0;
+    position: relative; z-index: 20;
+  }
+  .sv-seg { flex: 1; height: 2.5px; background: rgba(255,255,255,0.35); border-radius: 2px; overflow: hidden; }
+  .sv-seg .sv-fill { height: 100%; width: 0%; background: #fff; border-radius: 2px; }
+  .sv-seg.done .sv-fill { width: 100%; }
+  .sv-seg.current .sv-fill { width: 100%; transform-origin: left; transform: scaleX(0); animation: segFill 8s linear forwards; }
+  @keyframes segFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  .sv-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    flex-shrink: 0;
+    position: relative; z-index: 20;
+  }
+  .sv-user { display: flex; align-items: center; gap: 8px; }
+  .sv-user img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.4); }
+  .sv-user .sv-name { font-size: 12px; font-weight: 600; color: #fff; }
+  .sv-user .sv-time { font-size: 11px; color: rgba(255,255,255,0.7); font-weight: 400; margin-left: 4px; }
+  .sv-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px; }
+
+  .sv-body { flex: 1; position: relative; overflow: hidden; }
+  .sv-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; -webkit-user-drag: none; }
+
+  /* ── Distinct branded ad slide (no photo — pure Instagram gradient) ── */
+  .sv-ad {
+    display: none;
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, #405DE6 0%, #833AB4 30%, #E1306C 60%, #F77737 85%, #FCAF45 100%);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; text-align: center; padding: 0 28px 60px;
+    z-index: 5;
+  }
+  .sv-ad.show { display: flex; }
+  .sv-ad .ad-glyph {
+    width: 64px; height: 64px;
+    border: 4px solid #fff; border-radius: 18px;
+    position: relative;
+    margin-bottom: 4px;
+  }
+  .sv-ad .ad-glyph::before {
+    content: '';
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 26px; height: 26px;
+    border: 4px solid #fff; border-radius: 50%;
+  }
+  .sv-ad .ad-glyph::after {
+    content: '';
+    position: absolute; top: 6px; right: 6px;
+    width: 6px; height: 6px;
+    background: #fff; border-radius: 50%;
+  }
+  .sv-ad .ad-headline { color: #fff; font-size: 22px; font-weight: 800; line-height: 1.3; text-shadow: 0 1px 6px rgba(0,0,0,0.15); }
+  .sv-ad .ad-sub { color: rgba(255,255,255,0.92); font-size: 13px; line-height: 1.5; }
+  .sv-shade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.45) 100%); pointer-events: none; }
+
+  /* Tap zones */
+  .sv-tap-left, .sv-tap-right { position: absolute; top: 0; bottom: 0; z-index: 15; cursor: pointer; }
+  .sv-tap-left { left: 0; width: 33%; }
+  .sv-tap-right { right: 0; width: 67%; }
+
+  /* Story caption text overlay */
+  .sv-caption {
+    position: absolute; left: 16px; right: 16px; bottom: 76px;
+    color: #fff; font-size: 15px; font-weight: 600; line-height: 1.4;
+    text-align: center;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+    z-index: 10;
+    pointer-events: none;
+  }
+  .sv-caption.with-cta { bottom: 140px; }
+
+  /* Keep-tapping hint */
+  .sv-hint {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    z-index: 25;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    color: #fff;
+    pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+    transition: opacity 0.4s;
+    animation: hintNudge 1.4s ease-in-out infinite;
+  }
+  .sv-hint.hidden { opacity: 0; }
+  .sv-hint .hint-bubble {
+    background: rgba(28,28,30,0.85);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 11px; font-weight: 600;
+    max-width: 130px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .sv-hint svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); }
+  @keyframes hintNudge {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-50%) translateX(6px); }
+  }
+
+  /* Sponsored CTA in story */
+  .sv-cta {
+    position: absolute; left: 50%; bottom: 48px; transform: translateX(-50%);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  .sv-cta .sv-cta-chevron { color: #fff; font-size: 14px; animation: bounceUp 1.2s ease-in-out infinite; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  .sv-cta button {
+    background: #fff; color: #1c1c1e; border: none;
+    border-radius: 18px; font-size: 12px; font-weight: 700;
+    padding: 8px 22px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .sv-cta button:active { opacity: 0.8; }
+  .sv-sponsored-tag { font-size: 11px; color: rgba(255,255,255,0.85); font-weight: 400; }
+
+  /* Story footer (reply bar) */
+  .sv-footer {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px 14px;
+    position: relative; z-index: 20;
+  }
+  .sv-reply {
+    flex: 1;
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 18px;
+    padding: 8px 12px;
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.8);
+    background: transparent;
+  }
+  .sv-footer svg { width: 22px; height: 22px; flex-shrink: 0; cursor: pointer; }
+
+  /* All caught up */
+  .caught-up {
+    display: none;
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.97);
+    z-index: 300;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 0 30px;
+  }
+  .caught-up.open { display: flex; }
+  .caught-up .cu-check {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--ig-story-gradient);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .caught-up .cu-check svg { width: 28px; height: 28px; }
+  .caught-up .cu-title { font-size: 15px; font-weight: 700; color: var(--ig-text); }
+  .caught-up .cu-sub { font-size: 12px; color: var(--ig-text-secondary); line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone-inner">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <div class="signal"><div class="bar" style="height:4px"></div><div class="bar" style="height:7px"></div><div class="bar" style="height:10px"></div><div class="bar" style="height:13px"></div></div>
+        <span class="wifi-icon">&#8984;</span>
+        <div class="battery"><div class="battery-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="ig-top-nav">
+      <div class="logo"><svg viewBox="0 0 120 35" xmlns="http://www.w3.org/2000/svg"><text x="0" y="27" font-family="'Inter', sans-serif" font-weight="700" font-size="24" fill="#262626" letter-spacing="-0.5">Instagram</text></svg></div>
+      <div class="nav-icons">
+        <div class="notif-dot"><svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      </div>
+    </div>
+
+    <div class="feed-scroll">
+      <div class="stories" id="storiesBar">
+        <div class="story-item"><div class="story-ring your-story"><img class="story-avatar" src="assets/avatar-sofia.jpg" alt=""><div class="story-plus">+</div></div><span class="story-name">Your story</span></div>
+        <!-- story items injected by JS -->
+      </div>
+
+      <div class="tap-instruction" id="tapInstruction">
+        <span class="ti-text"><b>Tap the story with the glowing ring above</b> 👆 to start viewing stories. Once inside, <b>keep tapping the screen</b> to move through them.</span>
+      </div>
+
+      <!-- Feed post below so the feed looks real -->
+      <div class="post">
+        <div class="post-header"><div class="post-user"><img class="post-avatar" src="assets/avatar-sofia.jpg" alt=""><div><span class="post-username">sofia.marie</span><br><span class="post-location">Brooklyn, New York</span></div></div><div class="post-more"><svg viewBox="0 0 24 24" fill="#262626"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></div></div>
+        <img class="post-image" src="assets/feed-rooftop-sunset.jpg" alt="">
+        <div class="post-actions"><div class="post-actions-left"><svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div><svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="post-body"><div class="post-likes">128 likes</div><div class="post-caption"><span class="cap-user">sofia.marie</span>Rooftop sunsets with the best people 🧡</div><div class="post-comments-link">View all 14 comments</div><div class="post-time">2 hours ago</div></div>
+      </div>
+
+      <div style="height: 16px;"></div>
+    </div>
+
+    <div class="ig-bottom-nav">
+      <svg viewBox="0 0 24 24" fill="#262626"><path d="M22 23h-6.001a1 1 0 0 1-1-1v-5.455a2.997 2.997 0 1 0-5.993 0V22a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V11.543a1.002 1.002 0 0 1 .31-.724l10-9.543a1.001 1.001 0 0 1 1.38 0l10 9.543a1.002 1.002 0 0 1 .31.724V22a1 1 0 0 1-1 1z"/></svg>
+      <svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><line x1="2" y1="8" x2="22" y2="8"/><polygon points="10 12 10 18 16 15 10 12" fill="#262626" stroke="none"/></svg>
+      <svg fill="none" stroke="#262626" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <img class="nav-avatar" src="assets/avatar-sofia.jpg" alt="">
+    </div>
+
+    <!-- ══ Story Viewer ══ -->
+    <div class="story-viewer" id="storyViewer">
+      <div class="sv-progress" id="svProgress"></div>
+      <div class="sv-header">
+        <div class="sv-user"><img id="svAvatar" src="" alt=""><span class="sv-name" id="svName"></span><span class="sv-time" id="svTime"></span></div>
+        <button class="sv-close" id="svClose">✕</button>
+      </div>
+      <div class="sv-body">
+        <img class="sv-image" id="svImage" src="" alt="">
+        <div class="sv-ad" id="svAd">
+          <div class="ad-glyph"></div>
+          <div class="ad-headline">Your feed,<br>your way. ✨</div>
+          <div class="ad-sub">Discover new features designed to help you connect with what matters most.</div>
+        </div>
+        <div class="sv-shade"></div>
+        <div class="sv-caption" id="svCaption"></div>
+        <div class="sv-cta" id="svCta" style="display:none">
+          <div class="sv-cta-chevron">⌃</div>
+          <button id="svCtaBtn">Learn More</button>
+        </div>
+        <div class="sv-hint" id="svHint">
+          <div class="hint-bubble">Keep tapping to continue →</div>
+          <svg fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="sv-tap-left" id="svTapLeft"></div>
+        <div class="sv-tap-right" id="svTapRight"></div>
+      </div>
+      <div class="sv-footer">
+        <div class="sv-reply">Send message</div>
+        <svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </div>
+    </div>
+
+    <!-- All caught up -->
+    <div class="caught-up" id="caughtUp">
+      <div class="cu-check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="cu-title">You're all caught up</div>
+      <div class="cu-sub">You've seen all the stories.<br>Tap anywhere to return to your feed.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  /* ── Story data (friends' stories + one clearly distinct ad) ── */
+  var IG_LOGO_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='%23FFDC80'/><stop offset='0.25' stop-color='%23F77737'/><stop offset='0.5' stop-color='%23E1306C'/><stop offset='0.75' stop-color='%23833AB4'/><stop offset='1' stop-color='%23405DE6'/></linearGradient></defs><rect width='100' height='100' fill='url(%23g)'/><g fill='none' stroke='white' stroke-width='6'><rect x='27' y='27' width='46' height='46' rx='13'/><circle cx='50' cy='50' r='11'/></g><circle cx='65' cy='35' r='3.5' fill='white'/></svg>";
+
+  var CDN = 'assets/';
+  var storyUsers = [
+    {
+      name: 'maddie.hayes',
+      avatar: CDN + 'avatar-maddie.jpg',
+      segments: [
+        { img: CDN + 'story-brunch-selfie.jpg', time: '2h', caption: 'brunch w the girls 🥞💕' },
+        { img: CDN + 'story-rooftop-view.jpg', time: '2h', caption: 'ok but this view >>>' },
+        { img: CDN + 'story-brunch-candid.jpg', time: '1h', caption: '' }
+      ]
+    },
+    {
+      name: 'jake.rivera',
+      avatar: CDN + 'avatar-jake.jpg',
+      segments: [
+        { img: CDN + 'story-concert.jpg', time: '4h', caption: 'last night was unreal 🎸🔥' },
+        { img: CDN + 'story-dog-park.jpg', time: '3h', caption: 'he\'s tired from all the fetch 🐶' }
+      ]
+    },
+    {
+      name: 'instagram',
+      avatar: IG_LOGO_AVATAR,
+      sponsored: true,
+      segments: [
+        { ad: true, time: '', caption: '', cta: { label: 'Learn More', sub: 'about.instagram.com' } }
+      ]
+    },
+    {
+      name: 'em.woods',
+      avatar: CDN + 'avatar-em.jpg',
+      segments: [
+        { img: CDN + 'story-hike-summit.jpg', time: '6h', caption: 'made it to the top 🥾⛰️' },
+        { img: CDN + 'story-coffee.jpg', time: '5h', caption: 'post-hike reward ☕' }
+      ]
+    }
+  ];
+
+  var storiesBar = document.getElementById('storiesBar');
+  var viewer = document.getElementById('storyViewer');
+  var progress = document.getElementById('svProgress');
+  var svAvatar = document.getElementById('svAvatar');
+  var svName = document.getElementById('svName');
+  var svTime = document.getElementById('svTime');
+  var svImage = document.getElementById('svImage');
+  var svCaption = document.getElementById('svCaption');
+  var svCta = document.getElementById('svCta');
+  var svCtaBtn = document.getElementById('svCtaBtn');
+  var svHint = document.getElementById('svHint');
+  var svClose = document.getElementById('svClose');
+  var caughtUp = document.getElementById('caughtUp');
+  var tapInstruction = document.getElementById('tapInstruction');
+
+  var curUser = 0, curSeg = 0;
+  var hasTappedOnce = false;
+
+  /* ── Build stories bar ── */
+  storyUsers.forEach(function(u, idx) {
+    var item = document.createElement('div');
+    item.className = 'story-item';
+    item.innerHTML =
+      '<div class="story-ring' + (idx === 0 ? ' pulse-target' : '') + '" data-user="' + idx + '">' +
+        '<img class="story-avatar" src="' + u.avatar + '" alt="">' +
+      '</div>' +
+      '<span class="story-name">' + u.name + '</span>';
+    item.addEventListener('click', function() { openViewer(idx); });
+    storiesBar.appendChild(item);
+  });
+
+  function buildProgress() {
+    progress.innerHTML = '';
+    var segs = storyUsers[curUser].segments;
+    for (var i = 0; i < segs.length; i++) {
+      var seg = document.createElement('div');
+      seg.className = 'sv-seg' + (i < curSeg ? ' done' : (i === curSeg ? ' current' : ''));
+      seg.innerHTML = '<div class="sv-fill"></div>';
+      progress.appendChild(seg);
+    }
+  }
+
+  /* Preload every story image up front so segment changes are instant */
+  storyUsers.forEach(function(u) {
+    var a = new Image(); a.src = u.avatar;
+    u.segments.forEach(function(s) { if (s.img) { var i = new Image(); i.src = s.img; } });
+  });
+
+  var svAd = document.getElementById('svAd');
+
+  var renderToken = 0;
+  function renderSegment() {
+    var token = ++renderToken;
+    var u = storyUsers[curUser];
+    var s = u.segments[curSeg];
+    svAvatar.src = u.avatar;
+    svName.textContent = u.name;
+    svTime.textContent = u.sponsored ? 'Sponsored' : s.time;
+    buildProgress();
+
+    /* Swap text overlays in sync with the image: if the image is already
+       cached, update everything immediately; otherwise clear the overlays
+       and apply them the moment the new image finishes loading. */
+    function applyOverlays() {
+      if (token !== renderToken) return; /* a newer segment took over */
+      svCaption.textContent = s.caption || '';
+      svCaption.classList.toggle('with-cta', !!s.cta);
+      if (s.cta) {
+        svCta.style.display = 'flex';
+        svCtaBtn.textContent = s.cta.label;
+      } else {
+        svCta.style.display = 'none';
+      }
+    }
+    if (s.ad) {
+      /* Branded ad slide — no photo to wait for */
+      svImage.style.display = 'none';
+      svAd.classList.add('show');
+      applyOverlays();
+      return;
+    }
+    svImage.style.display = '';
+    svAd.classList.remove('show');
+    svImage.onload = null;
+    svImage.src = s.img;
+    if (svImage.complete) {
+      applyOverlays();
+    } else {
+      svCaption.textContent = '';
+      svCta.style.display = 'none';
+      svImage.onload = applyOverlays;
+      /* Fallback in case load never fires (e.g., image error) */
+      setTimeout(applyOverlays, 1500);
+    }
+  }
+
+  function openViewer(userIdx) {
+    curUser = userIdx;
+    curSeg = 0;
+    hasTappedOnce = false;
+    svHint.classList.remove('hidden');
+    viewer.classList.add('open');
+    renderSegment();
+    // mark ring as seen + stop pulsing
+    var ring = storiesBar.querySelector('[data-user="' + userIdx + '"]');
+    if (ring) { ring.classList.add('seen'); ring.classList.remove('pulse-target'); }
+    if (tapInstruction) tapInstruction.style.display = 'none';
+  }
+
+  function closeViewer() { viewer.classList.remove('open'); }
+
+  function next() {
+    if (!hasTappedOnce) { hasTappedOnce = true; svHint.classList.add('hidden'); }
+    var segs = storyUsers[curUser].segments;
+    if (curSeg < segs.length - 1) {
+      curSeg++;
+      renderSegment();
+    } else if (curUser < storyUsers.length - 1) {
+      // mark current seen, move to next user
+      var ring = storiesBar.querySelector('[data-user="' + curUser + '"]');
+      if (ring) ring.classList.add('seen');
+      curUser++;
+      curSeg = 0;
+      renderSegment();
+      var nring = storiesBar.querySelector('[data-user="' + curUser + '"]');
+      if (nring) { nring.classList.add('seen'); nring.classList.remove('pulse-target'); }
+    } else {
+      var lring = storiesBar.querySelector('[data-user="' + curUser + '"]');
+      if (lring) lring.classList.add('seen');
+      closeViewer();
+      caughtUp.classList.add('open');
+    }
+  }
+
+  function prev() {
+    if (curSeg > 0) {
+      curSeg--;
+      renderSegment();
+    } else if (curUser > 0) {
+      curUser--;
+      curSeg = storyUsers[curUser].segments.length - 1;
+      renderSegment();
+    }
+  }
+
+  document.getElementById('svTapRight').addEventListener('click', next);
+  document.getElementById('svTapLeft').addEventListener('click', prev);
+  svClose.addEventListener('click', closeViewer);
+  svCtaBtn.addEventListener('click', function(e) { e.stopPropagation(); });
+  caughtUp.addEventListener('click', function() { caughtUp.classList.remove('open'); });
+
+  // Keyboard support
+  window.addEventListener('keydown', function(e) {
+    if (!viewer.classList.contains('open')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ') next();
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === 'Escape') closeViewer();
+  });
+})();
+</script>
+</body>
+</html>

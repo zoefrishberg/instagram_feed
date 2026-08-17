@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Instagram Reels Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: #e8e8ed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
+  }
+
+  .phone {
+    width: 320px;
+    background: #1c1c1e;
+    border-radius: 44px;
+    padding: 12px;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.4),
+      0 8px 20px rgba(0,0,0,0.25),
+      inset 0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .phone-inner {
+    background: #000;
+    border-radius: 34px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 580px;
+    position: relative;
+  }
+
+  .status-bar {
+    background: transparent;
+    padding: 14px 24px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+    position: absolute; top: 0; left: 0; right: 0;
+    z-index: 40;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .signal { display: flex; gap: 2px; align-items: flex-end; }
+  .bar { background: #fff; width: 3px; border-radius: 0.5px; }
+  .wifi-icon { font-size: 11px; }
+  .battery { width: 22px; height: 11px; border: 1.5px solid #fff; border-radius: 2px; position: relative; padding: 1.5px; }
+  .battery::after { content: ''; position: absolute; right: -5px; top: 2.5px; width: 2px; height: 6px; background: #fff; border-radius: 0 1.5px 1.5px 0; }
+  .battery-fill { background: #fff; height: 100%; width: 70%; border-radius: 1px; }
+
+  :root {
+    --ig-blue: #0095f6;
+    --ig-red: #ed4956;
+  }
+
+  .reels-header {
+    position: absolute; top: 34px; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px;
+    z-index: 40;
+    pointer-events: none;
+  }
+  .reels-header .reels-title { font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+  .reels-header svg { width: 22px; height: 22px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4)); }
+
+  /* ── Vertical pager ── */
+  .reels-viewport {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+  .reels-track {
+    height: 100%;
+    transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+    touch-action: none;
+  }
+  .reel {
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    user-select: none;
+  }
+  .reel-media {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    user-select: none; -webkit-user-drag: none;
+    background: #000;
+  }
+  video.reel-media { pointer-events: none; }
+  /* ── Branded ad slide (matches the Stories ad) ── */
+  .ad-slide {
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, #405DE6 0%, #833AB4 30%, #E1306C 60%, #F77737 85%, #FCAF45 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; text-align: center; padding: 0 28px 80px;
+    animation: none;
+  }
+  .ad-slide .ad-glyph {
+    width: 64px; height: 64px;
+    border: 4px solid #fff; border-radius: 18px;
+    position: relative; margin-bottom: 4px;
+  }
+  .ad-slide .ad-glyph::before {
+    content: '';
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 26px; height: 26px;
+    border: 4px solid #fff; border-radius: 50%;
+  }
+  .ad-slide .ad-glyph::after {
+    content: '';
+    position: absolute; top: 6px; right: 6px;
+    width: 6px; height: 6px;
+    background: #fff; border-radius: 50%;
+  }
+  .ad-slide .ad-headline { color: #fff; font-size: 22px; font-weight: 800; line-height: 1.3; text-shadow: 0 1px 6px rgba(0,0,0,0.15); }
+  .ad-slide .ad-sub { color: rgba(255,255,255,0.92); font-size: 13px; line-height: 1.5; }
+
+  .reel-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+  }
+
+  /* Right action rail */
+  .reel-rail {
+    position: absolute; right: 8px; bottom: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    z-index: 20;
+  }
+  .rail-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+  .rail-item svg { width: 24px; height: 24px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); transition: transform 0.15s; }
+  .rail-item:active svg { transform: scale(0.85); }
+  .rail-item .rail-count { font-size: 10px; font-weight: 600; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .rail-item.liked svg { fill: var(--ig-red); stroke: var(--ig-red); }
+  .rail-audio {
+    width: 24px; height: 24px; border-radius: 6px;
+    border: 1.5px solid rgba(255,255,255,0.9);
+    overflow: hidden;
+    animation: spinDisc 6s linear infinite;
+    border-radius: 50%;
+  }
+  .rail-audio img { width: 100%; height: 100%; object-fit: cover; }
+  @keyframes spinDisc { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* Bottom meta */
+  .reel-meta {
+    position: absolute; left: 12px; right: 56px; bottom: 16px;
+    z-index: 20;
+    color: #fff;
+  }
+  .reel-user { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .reel-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1.5px solid rgba(255,255,255,0.9); }
+  .reel-username { font-size: 12px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .verified-badge { display: inline-flex; vertical-align: middle; margin-left: 3px; }
+  .verified-badge svg { width: 11px; height: 11px; }
+  .reel-follow {
+    margin-left: 4px;
+    background: transparent; color: #fff;
+    border: 1px solid rgba(255,255,255,0.85);
+    border-radius: 6px; font-size: 10.5px; font-weight: 600;
+    padding: 3px 10px; cursor: pointer;
+  }
+  .reel-caption { font-size: 11.5px; line-height: 1.4; margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .reel-caption .hashtag { color: #cfe3ff; }
+  .reel-audio-row { display: flex; align-items: center; gap: 6px; font-size: 10.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .reel-audio-row svg { width: 12px; height: 12px; flex-shrink: 0; }
+  .audio-marquee { overflow: hidden; white-space: nowrap; max-width: 170px; }
+  .audio-marquee span { display: inline-block; animation: marquee 9s linear infinite; }
+  @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+  .sponsored-label { font-size: 10px; color: rgba(255,255,255,0.85); font-weight: 400; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+  .reel-cta {
+    background: rgba(255,255,255,0.95);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .reel-cta .cta-info { min-width: 0; }
+  .reel-cta .cta-text { font-size: 11px; font-weight: 600; color: #1c1c1e; }
+  .reel-cta .cta-sub { font-size: 9px; color: #6e6e73; }
+  .cta-btn {
+    background: var(--ig-blue); color: #fff; border: none;
+    border-radius: 6px; font-size: 10px; font-weight: 600;
+    padding: 5px 12px; cursor: pointer; flex-shrink: 0;
+  }
+  .cta-btn:active { opacity: 0.8; }
+
+  /* Heart pop */
+  .heart-overlay { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) scale(0); pointer-events: none; z-index: 30; opacity: 0; }
+  .heart-overlay.pop { animation: heartPop 0.8s ease forwards; }
+  @keyframes heartPop {
+    0%  { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+    15% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+    30% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    70% { opacity: 1; }
+    100%{ transform: translate(-50%,-50%) scale(1); opacity: 0; }
+  }
+
+  /* Swipe hint */
+  .swipe-hint {
+    position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%);
+    z-index: 35;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: #fff;
+    pointer-events: none;
+    animation: hintFloat 1.6s ease-in-out infinite;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    transition: opacity 0.4s;
+  }
+  .swipe-hint.hidden { opacity: 0; }
+  .swipe-hint svg { width: 22px; height: 22px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); }
+  .swipe-hint span { font-size: 11px; font-weight: 600; }
+  @keyframes hintFloat {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-8px); }
+  }
+
+  /* Progress dots (which reel) */
+  .reel-progress {
+    position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 4px; z-index: 40;
+  }
+  .reel-progress .rp-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.4); transition: background 0.2s; }
+  .reel-progress .rp-dot.active { background: #fff; }
+
+  .ig-bottom-nav {
+    background: #000;
+    border-top: 0.5px solid #262626;
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 6px 0 10px;
+    flex-shrink: 0;
+    z-index: 50;
+  }
+  .ig-bottom-nav svg { width: 20px; height: 20px; }
+  .ig-bottom-nav .nav-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 0.5px solid #444; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone-inner">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <div class="signal"><div class="bar" style="height:4px"></div><div class="bar" style="height:7px"></div><div class="bar" style="height:10px"></div><div class="bar" style="height:13px"></div></div>
+        <span class="wifi-icon">&#8984;</span>
+        <div class="battery"><div class="battery-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="reels-header">
+      <span class="reels-title">Reels</span>
+      <svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </div>
+
+    <div class="reel-progress" id="reelProgress"></div>
+
+    <div class="reels-viewport" id="reelsViewport">
+      <div class="reels-track" id="reelsTrack">
+
+        <!-- REEL 1 -->
+        <div class="reel">
+          <video class="reel-media" src="assets/reel-beach.mp4" poster="assets/reel-beach-poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+          <div class="reel-shade"></div>
+          <div class="heart-overlay"><svg width="70" height="70" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <div class="reel-rail">
+            <div class="rail-item like-btn"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="rail-count">48.2K</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="rail-count">1,024</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span class="rail-count">Share</span></div>
+            <div class="rail-item"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></div>
+            <div class="rail-audio"><img src="assets/reel-beach-poster.jpg" alt=""></div>
+          </div>
+          <div class="reel-meta">
+            <div class="reel-user"><img class="reel-avatar" src="assets/avatar-p5.jpg" alt=""><span class="reel-username">wanderlens</span><button class="reel-follow">Follow</button></div>
+            <div class="reel-caption">POV: you found the quietest beach in Portugal 🌊 <span class="hashtag">#travel</span> <span class="hashtag">#hiddenbeach</span></div>
+            <div class="reel-audio-row"><svg fill="#fff" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><div class="audio-marquee"><span>wanderlens · Original audio&nbsp;&nbsp;&nbsp;&nbsp;wanderlens · Original audio&nbsp;&nbsp;&nbsp;&nbsp;</span></div></div>
+          </div>
+          <div class="swipe-hint" id="swipeHint">
+            <svg fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+            <span>Swipe up for the next reel</span>
+          </div>
+        </div>
+
+        <!-- REEL 2 -->
+        <div class="reel">
+          <video class="reel-media" src="assets/reel-pasta.mp4" poster="assets/reel-pasta-poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+          <div class="reel-shade"></div>
+          <div class="heart-overlay"><svg width="70" height="70" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <div class="reel-rail">
+            <div class="rail-item like-btn"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="rail-count">12.7K</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="rail-count">318</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span class="rail-count">Share</span></div>
+            <div class="rail-item"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></div>
+            <div class="rail-audio"><img src="assets/reel-pasta-poster.jpg" alt=""></div>
+          </div>
+          <div class="reel-meta">
+            <div class="reel-user"><img class="reel-avatar" src="assets/avatar-p7.jpg" alt=""><span class="reel-username">sunday.suppers</span><button class="reel-follow">Follow</button></div>
+            <div class="reel-caption">15-minute pasta that tastes like it took all day 🍝 Recipe in comments <span class="hashtag">#easyrecipes</span></div>
+            <div class="reel-audio-row"><svg fill="#fff" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><div class="audio-marquee"><span>sunday.suppers · Kitchen Jazz&nbsp;&nbsp;&nbsp;&nbsp;sunday.suppers · Kitchen Jazz&nbsp;&nbsp;&nbsp;&nbsp;</span></div></div>
+          </div>
+        </div>
+
+        <!-- REEL 3 — SPONSORED -->
+        <div class="reel">
+          <div class="reel-media ad-slide"><div class="ad-glyph"></div><div class="ad-headline">Your feed,<br>your way. ✨</div><div class="ad-sub">Discover new features designed to help you connect with what matters most.</div></div>
+          <div class="reel-shade"></div>
+          <div class="heart-overlay"><svg width="70" height="70" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <div class="reel-rail">
+            <div class="rail-item like-btn"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="rail-count">9,845</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="rail-count">207</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span class="rail-count">Share</span></div>
+            <div class="rail-item"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></div>
+            <div class="rail-audio"><img src="assets/avatar-maddie.jpg" alt=""></div>
+          </div>
+          <div class="reel-meta">
+            <div class="reel-user"><img class="reel-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='%23FFDC80'/><stop offset='0.25' stop-color='%23F77737'/><stop offset='0.5' stop-color='%23E1306C'/><stop offset='0.75' stop-color='%23833AB4'/><stop offset='1' stop-color='%23405DE6'/></linearGradient></defs><rect width='100' height='100' fill='url(%23g)'/><g fill='none' stroke='white' stroke-width='6'><rect x='27' y='27' width='46' height='46' rx='13'/><circle cx='50' cy='50' r='11'/></g><circle cx='65' cy='35' r='3.5' fill='white'/></svg>" alt=""><span class="reel-username">instagram</span><span class="verified-badge"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#0095f6"/><path d="M17.5 28l-7-7 2.5-2.5 4.5 4.5 9.5-9.5 2.5 2.5z" fill="#fff"/></svg></span></div>
+            <div class="sponsored-label" style="margin-bottom:6px">Sponsored</div>
+            <div class="reel-cta"><div class="cta-info"><div class="cta-text">about.instagram.com</div><div class="cta-sub">See what's new on Instagram</div></div><button class="cta-btn">Learn More</button></div>
+            <div class="reel-caption">Your feed, your way. Discover new features designed to help you connect with what matters most. ✨</div>
+            <div class="reel-audio-row"><svg fill="#fff" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><div class="audio-marquee"><span>instagram · Promoted audio&nbsp;&nbsp;&nbsp;&nbsp;instagram · Promoted audio&nbsp;&nbsp;&nbsp;&nbsp;</span></div></div>
+          </div>
+        </div>
+
+        <!-- REEL 4 -->
+        <div class="reel">
+          <video class="reel-media" src="assets/reel-dog.mp4" poster="assets/reel-dog-poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+          <div class="reel-shade"></div>
+          <div class="heart-overlay"><svg width="70" height="70" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <div class="reel-rail">
+            <div class="rail-item like-btn"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="rail-count">31.5K</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="rail-count">892</span></div>
+            <div class="rail-item"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span class="rail-count">Share</span></div>
+            <div class="rail-item"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></div>
+            <div class="rail-audio"><img src="assets/reel-dog-poster.jpg" alt=""></div>
+          </div>
+          <div class="reel-meta">
+            <div class="reel-user"><img class="reel-avatar" src="assets/avatar-p2.jpg" alt=""><span class="reel-username">studio.pup</span><button class="reel-follow">Follow</button></div>
+            <div class="reel-caption">Mid-air catch unlocked. He won't stop showing off 🐶 <span class="hashtag">#dogsofinstagram</span></div>
+            <div class="reel-audio-row"><svg fill="#fff" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><div class="audio-marquee"><span>studio.pup · Good Boy Anthem&nbsp;&nbsp;&nbsp;&nbsp;studio.pup · Good Boy Anthem&nbsp;&nbsp;&nbsp;&nbsp;</span></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="ig-bottom-nav">
+      <svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg viewBox="0 0 24 24" fill="#fff"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="#fff" stroke-width="2"/><line x1="2" y1="8" x2="22" y2="8" stroke="#fff" stroke-width="2"/><polygon points="10 12 10 18 16 15 10 12" fill="#fff"/></svg>
+      <svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <img class="nav-avatar" src="assets/avatar-sofia.jpg" alt="">
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  var viewport = document.getElementById('reelsViewport');
+  var track = document.getElementById('reelsTrack');
+  var reels = track.querySelectorAll('.reel');
+  var count = reels.length;
+  var current = 0;
+  var startY = 0, diffY = 0, dragging = false;
+  var hint = document.getElementById('swipeHint');
+  var wheelLock = false;
+
+  // Progress dots
+  var progress = document.getElementById('reelProgress');
+  for (var i = 0; i < count; i++) {
+    var d = document.createElement('div');
+    d.className = 'rp-dot' + (i === 0 ? ' active' : '');
+    progress.appendChild(d);
+  }
+
+  function goTo(i) {
+    current = Math.max(0, Math.min(count - 1, i));
+    track.style.transform = 'translateY(-' + (current * 100) + '%)';
+    progress.querySelectorAll('.rp-dot').forEach(function(d, idx) { d.classList.toggle('active', idx === current); });
+    // play only the reel in view
+    reels.forEach(function(reel, idx) {
+      var v = reel.querySelector('video.reel-media');
+      if (!v) return;
+      if (idx === current) { v.play().catch(function(){}); }
+      else { v.pause(); v.currentTime = 0; }
+    });
+    if (current > 0 && hint) hint.classList.add('hidden');
+  }
+
+  function h() { return viewport.offsetHeight; }
+
+  track.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; dragging = true; track.style.transition = 'none'; }, { passive: true });
+  track.addEventListener('touchmove', function(e) { if (!dragging) return; diffY = e.touches[0].clientY - startY; track.style.transform = 'translateY(' + (-(current * h()) + diffY) + 'px)'; }, { passive: true });
+  track.addEventListener('touchend', function() { dragging = false; track.style.transition = 'transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1)'; Math.abs(diffY) > 50 ? goTo(current + (diffY < 0 ? 1 : -1)) : goTo(current); diffY = 0; });
+
+  track.addEventListener('mousedown', function(e) { startY = e.clientY; dragging = true; track.style.transition = 'none'; e.preventDefault(); });
+  window.addEventListener('mousemove', function(e) { if (!dragging) return; diffY = e.clientY - startY; track.style.transform = 'translateY(' + (-(current * h()) + diffY) + 'px)'; });
+  window.addEventListener('mouseup', function() { if (!dragging) return; dragging = false; track.style.transition = 'transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1)'; Math.abs(diffY) > 50 ? goTo(current + (diffY < 0 ? 1 : -1)) : goTo(current); diffY = 0; });
+
+  // Mouse wheel / trackpad
+  viewport.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    if (wheelLock) return;
+    if (Math.abs(e.deltaY) < 20) return;
+    wheelLock = true;
+    goTo(current + (e.deltaY > 0 ? 1 : -1));
+    setTimeout(function() { wheelLock = false; }, 450);
+  }, { passive: false });
+
+  // Keyboard
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') goTo(current + 1);
+    if (e.key === 'ArrowUp') goTo(current - 1);
+  });
+
+  // Like buttons
+  document.querySelectorAll('.like-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { btn.classList.toggle('liked'); });
+  });
+
+  // Follow buttons
+  document.querySelectorAll('.reel-follow').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (btn.textContent === 'Follow') { btn.textContent = 'Following'; btn.style.opacity = '0.7'; }
+      else { btn.textContent = 'Follow'; btn.style.opacity = ''; }
+    });
+  });
+
+  // Double-tap like on each reel
+  reels.forEach(function(reel) {
+    var lastTap = 0;
+    function doLike() {
+      var heart = reel.querySelector('.heart-overlay');
+      var likeBtn = reel.querySelector('.like-btn');
+      if (heart) { heart.classList.remove('pop'); void heart.offsetWidth; heart.classList.add('pop'); }
+      if (likeBtn && !likeBtn.classList.contains('liked')) likeBtn.classList.add('liked');
+    }
+    reel.addEventListener('touchend', function() { var now = Date.now(); if (now - lastTap < 300) doLike(); lastTap = now; });
+    reel.addEventListener('dblclick', doLike);
+  });
+
+  goTo(0);
+
+  // Hide hint after first interaction
+  ['touchstart', 'mousedown', 'wheel'].forEach(function(evt) {
+    viewport.addEventListener(evt, function once() {
+      setTimeout(function() { if (current > 0 && hint) hint.classList.add('hidden'); }, 500);
+    });
+  });
+})();
+</script>
+</body>
+</html>
