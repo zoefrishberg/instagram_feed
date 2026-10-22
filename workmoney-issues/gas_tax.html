@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMS Conversation Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: #e8e8ed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
+  }
+
+  .variant-badge {
+    font-size: 11px;
+    color: #8e8e93;
+    margin-bottom: 14px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .phone {
+    width: 320px;
+    background: #1c1c1e;
+    border-radius: 44px;
+    padding: 12px;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.4),
+      0 8px 20px rgba(0,0,0,0.25),
+      inset 0 0 0 1px rgba(255,255,255,0.1);
+  }
+
+  .phone-inner {
+    background: #f2f2f7;
+    border-radius: 34px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 660px;
+  }
+
+  /* Status bar */
+  .status-bar {
+    background: #f2f2f7;
+    padding: 14px 24px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1c1c1e;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .signal { display: flex; gap: 2px; align-items: flex-end; }
+  .bar { background: #1c1c1e; width: 3px; border-radius: 0.5px; }
+  .wifi-icon { font-size: 11px; }
+  .battery {
+    width: 22px; height: 11px;
+    border: 1.5px solid #1c1c1e;
+    border-radius: 2px;
+    position: relative;
+    padding: 1.5px;
+  }
+  .battery::after {
+    content: '';
+    position: absolute;
+    right: -5px; top: 2.5px;
+    width: 2px; height: 6px;
+    background: #1c1c1e;
+    border-radius: 0 1.5px 1.5px 0;
+  }
+  .battery-fill { background: #1c1c1e; height: 100%; width: 70%; border-radius: 1px; }
+
+  /* Messages header */
+  .messages-header {
+    background: #f2f2f7;
+    padding: 3px 16px 5px;
+    text-align: center;
+    border-bottom: 0.5px solid #d1d1d6;
+    flex-shrink: 0;
+  }
+  .avatar-circle {
+    width: 30px; height: 30px;
+    font-size: 10px !important;
+    background: #007aff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .contact-name { font-size: 12px; font-weight: 600; color: #1c1c1e; }
+  .contact-sub { font-size: 9px; color: #8e8e93; margin-top: 1px; }
+
+  /* Messages area */
+  .messages-wrap { flex: 1; position: relative; display: flex; min-height: 0; }
+  .messages-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 12px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: #fff;
+    scroll-behavior: smooth;
+  }
+
+  .messages-area::-webkit-scrollbar { width: 3px; }
+  .messages-area::-webkit-scrollbar-thumb { background: #d1d1d6; border-radius: 2px; }
+
+  /* Scroll cue: only shown if the conversation overflows */
+  .scroll-cue {
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(28,28,30,0.78);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 4px 9px 4px 10px;
+    border-radius: 100px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .scroll-cue.visible { opacity: 1; animation: cueBob 1.6s ease-in-out infinite; }
+  .scroll-cue svg { display: block; }
+  @keyframes cueBob {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(3px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .scroll-cue.visible { animation: none; } }
+
+  .bubble-row { display: flex; flex-direction: column; animation: fadeUp 0.28s ease; }
+  .bubble-row.from-them { align-items: flex-start; }
+  .bubble-row.from-me { align-items: flex-end; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .bubble {
+    max-width: 92%;
+    padding: 8px 12px;
+    border-radius: 18px;
+    font-size: 13px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  .from-them .bubble {
+    background: #e5e5ea;
+    color: #1c1c1e;
+    border-bottom-left-radius: 4px;
+  }
+  .from-me .bubble {
+    background: #007aff;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble-time {
+    font-size: 9px;
+    color: #8e8e93;
+    margin-top: 2px;
+    padding: 0 4px;
+  }
+
+  .time-divider {
+    align-self: center;
+    font-size: 10px;
+    color: #8e8e93;
+    text-align: center;
+    margin: 1px 0 4px;
+    animation: fadeUp 0.28s ease;
+  }
+
+  /* Typing indicator */
+  .typing-row { display: flex; flex-direction: column; align-items: flex-start; animation: fadeUp 0.28s ease; }
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+    background: #e5e5ea;
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+    align-items: center;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    background: #8e8e93;
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30%           { transform: translateY(-5px); }
+  }
+
+  /* Input bar */
+  .input-bar {
+    background: #f2f2f7;
+    border-top: 0.5px solid #d1d1d6;
+    padding: 5px 10px 7px;
+    flex-shrink: 0;
+  }
+  .quick-replies {
+    display: none;
+    gap: 5px;
+    margin-bottom: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .qr-btn {
+    background: #fff;
+    border: 1.5px solid #007aff;
+    color: #007aff;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 11px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .qr-btn:hover { background: #007aff; color: #fff; }
+
+  .text-row { display: flex; align-items: center; }
+  .text-field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    border: 1px solid #c7c7cc;
+    border-radius: 18px;
+    background: #fff;
+    padding: 2px 2px 2px 12px;
+    min-height: 32px;
+    transition: border-color 0.15s;
+  }
+  .text-field:focus-within { border-color: #b0b0b5; }
+  .text-input {
+    flex: 1;
+    border: none;
+    padding: 5px 0;
+    font-size: 13px;
+    background: transparent;
+    color: #1c1c1e;
+    outline: none;
+    font-family: inherit;
+    min-width: 0;
+  }
+  .text-input::placeholder { color: #8e8e93; }
+  .send-btn {
+    width: 26px; height: 26px;
+    background: #c7c7cc;
+    border: none;
+    border-radius: 50%;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.1s, background 0.15s;
+    padding: 0;
+  }
+  .send-btn.ready { background: #007aff; cursor: pointer; }
+  .send-btn.ready:active { transform: scale(0.9); }
+  .send-btn:disabled { background: #c7c7cc; cursor: default; }
+  .send-btn svg { display: block; }
+
+  /* Intro overlay */
+  .intro-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(28,28,30,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 100;
+    transition: opacity 0.25s ease;
+  }
+  .intro-overlay.hidden { opacity: 0; pointer-events: none; }
+  .intro-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 32px 28px 28px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+  }
+  .intro-text {
+    font-size: 16px;
+    line-height: 1.5;
+    color: #3a3a3c;
+  }
+  .intro-org {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1c1c1e;
+    letter-spacing: -0.01em;
+    margin: 14px 0 24px;
+  }
+  .continue-btn {
+    background: #007aff;
+    color: #fff;
+    border: none;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px 40px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .continue-btn:hover { background: #0071eb; }
+  .continue-btn:active { transform: scale(0.97); }
+  .continue-btn:focus-visible { outline: 3px solid rgba(0,122,255,0.4); outline-offset: 2px; }
+
+  /* End screen */
+  .end-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    background: #fff;
+    padding: 24px;
+    text-align: center;
+    gap: 10px;
+  }
+  .end-check {
+    width: 56px; height: 56px;
+    background: #34c759;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 4px;
+  }
+  .end-title { font-size: 17px; font-weight: 600; color: #1c1c1e; }
+  .end-sub { font-size: 13px; color: #8e8e93; line-height: 1.6; max-width: 200px; }
+  .restart-btn {
+    margin-top: 8px;
+    background: none;
+    border: 1.5px solid #007aff;
+    color: #007aff;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 100px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .restart-btn:hover { background: #007aff; color: #fff; }
+
+  /* Compact end banner (shows underneath messages, not replacing them) */
+  .end-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #f2f2f7;
+    border-top: 0.5px solid #d1d1d6;
+    flex-shrink: 0;
+    animation: fadeUp 0.3s ease;
+  }
+  .end-banner .end-check {
+    width: 32px; height: 32px;
+    background: #34c759;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+  .end-banner-text { text-align: left; }
+  .end-banner .end-title { font-size: 14px; }
+  .end-banner .end-sub { font-size: 11px; max-width: none; }
+</style>
+</head>
+<body>
+
+<div class="intro-overlay" id="intro-overlay">
+  <div class="intro-card">
+    <p class="intro-text">Please click below to have a conversation with
+      <strong class="intro-org">Jane Smith</strong>.
+    </p>
+    <button class="continue-btn" id="continue-btn" onclick="startConversation()">CLICK HERE</button>
+  </div>
+</div>
+
+<div class="phone">
+  <div class="phone-inner">
+
+    <div class="status-bar">
+      <span id="status-time">9:41</span>
+      <div class="status-icons">
+        <div class="signal">
+          <div class="bar" style="height:4px"></div>
+          <div class="bar" style="height:7px"></div>
+          <div class="bar" style="height:10px"></div>
+          <div class="bar" style="height:13px"></div>
+        </div>
+        <span class="wifi-icon">&#8984;</span>
+        <div class="battery"><div class="battery-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="messages-header">
+      <div class="avatar-circle">JS</div>
+      <div class="contact-name">Jane Smith</div>
+    </div>
+
+    <div class="messages-wrap">
+      <div class="messages-area" id="messages"></div>
+      <div class="scroll-cue" id="scroll-cue">Scroll for more
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="input-bar" id="input-bar">
+      <div class="quick-replies" id="quick-replies"></div>
+      <div class="text-row" id="text-row">
+        <div class="text-field">
+          <input class="text-input" id="text-input" placeholder="Text Message" />
+          <button class="send-btn" id="send-btn" onclick="handleSend()" aria-label="Send">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20V5"/><path d="M5.5 11.5 12 5l6.5 6.5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const VARIANTS = [
+  {
+    label: "Jane Smith",
+    opening: "We deserve a leader who will focus on making life easier in Michigan. \n\nI saw that Dr. Abdul wants the first $50,000 any family earns to be completely free of federal taxes. He supports pausing the federal gas tax to give us a break at the pump too. I know lots of folks could use more money in every paycheck and lower prices on everyday essentials. \n\nAre you feeling good about your choice for U.S. Senate this year?\nA. Yes\nB. No\nC. I\u2019m still considering",
+    replyHit: "Thanks! More soon.",
+    replyNotHit: "Thanks! More soon."
+  }
+];
+
+let variant, step, lastUserRow;
+
+function getTime() {
+  const d = new Date();
+  let h = d.getHours(), m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+}
+
+function updateScrollCue() {
+  const area = document.getElementById('messages');
+  const cue = document.getElementById('scroll-cue');
+  const overflow = area.scrollHeight - area.clientHeight - area.scrollTop > 12;
+  cue.classList.toggle('visible', overflow);
+}
+
+function updateSendState() {
+  const input = document.getElementById('text-input');
+  const btn = document.getElementById('send-btn');
+  btn.classList.toggle('ready', input.value.trim().length > 0 && !btn.disabled);
+}
+
+function addBubble(text, from, typingDelay) {
+  return new Promise(resolve => {
+    const area = document.getElementById('messages');
+
+    if (from === 'them') {
+      const typingRow = document.createElement('div');
+      typingRow.className = 'typing-row';
+      typingRow.innerHTML = '<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+      area.appendChild(typingRow);
+      area.scrollTop = area.scrollHeight;
+
+      setTimeout(() => {
+        typingRow.remove();
+        const row = document.createElement('div');
+        row.className = 'bubble-row from-them';
+        row.innerHTML = '<div class="bubble">' + text.replace(/\n/g, '<br>') + '</div>';
+        area.appendChild(row);
+
+        // Anchor scroll to the user's last reply so they see what they sent
+        // with the new message appearing right underneath.
+        const anchor = lastUserRow || row;
+        area.scrollTop = anchor.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop;
+        updateScrollCue();
+
+        resolve();
+      }, typingDelay || 1200);
+
+    } else {
+      const row = document.createElement('div');
+      row.className = 'bubble-row from-me';
+      const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      row.innerHTML = '<div class="bubble">' + safe + '</div>';
+      area.appendChild(row);
+      area.scrollTop = area.scrollHeight;
+      lastUserRow = row;
+      updateScrollCue();
+      resolve();
+    }
+  });
+}
+
+function setQuickReplies(options) {
+  const qr = document.getElementById('quick-replies');
+  qr.innerHTML = '';
+  if (options && options.length) {
+    qr.style.display = 'flex';
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'qr-btn';
+      btn.textContent = opt;
+      btn.onclick = () => {
+        document.getElementById('text-input').value = opt;
+        handleSend();
+      };
+      qr.appendChild(btn);
+    });
+  } else {
+    qr.style.display = 'none';
+  }
+}
+
+// Returns true if the reply indicates the person (or someone close) was hit by a scam.
+function isAffirmativeHit(raw) {
+  const t = raw.toLowerCase().trim();
+  const first = t.replace(/^option\s+/, '').replace(/[.)\]:,-]+/g, ' ').trim().split(/\s+/)[0];
+
+  // Explicit option letters
+  if (first === 'a' || first === 'b') return true;
+  if (first === 'c') return false;
+
+  const negation = /\b(no|nope|nah|not|never|neither|none|haven't|hasn't|hadn't|didn't|don't|doesn't|isn't|wasn't|havent|hasnt|didnt|dont|doesnt|isnt|wasnt|unaware)\b/;
+  const strongYes = /\b(yes|yeah|yep|yup|yea|yess+)\b/;
+  const affirmative = /\b(yes|yeah|yep|yup|ya|yea|yess+|sure|definitely|absolutely|unfortunately|sadly|me|myself|mine|i (have|was|got|did|am)|it (happened|hit)|happened to|hit me|hit us|hit my|scammed|scam(med)? (me|us|my)|victim|lost money|lost \$|stole|stolen|my (mom|dad|mother|father|parent|parents|grandma|grandpa|grandmother|grandfather|aunt|uncle|sister|brother|son|daughter|wife|husband|partner|friend|friends|neighbor|neighbour|coworker|co-worker|family|kid|kids|child|children)|someone (close|i know)|a friend|people (i know|who have)|both|twice|several times)\b/;
+
+  // Judge each clause separately so "not me, but my sister was" and
+  // "yes, but not badly" both count as a hit.
+  const clauses = t.split(/\bbut\b|;/).map(c => c.trim()).filter(Boolean);
+  return clauses.some(c => affirmative.test(c) && (strongYes.test(c) || !negation.test(c)));
+}
+
+async function handleSend() {
+  const input = document.getElementById('text-input');
+  const sendBtn = document.getElementById('send-btn');
+  const raw = input.value.trim();
+  if (!raw || sendBtn.disabled || step !== 1) return;
+
+  input.value = '';
+  sendBtn.disabled = true;
+  updateSendState();
+  setQuickReplies(null);
+
+  step = 2;
+  await addBubble(raw, 'me');
+  const reply = isAffirmativeHit(raw) ? variant.replyHit : variant.replyNotHit;
+  await addBubble(reply, 'them', 1200);
+  const area = document.getElementById('messages');
+  area.scrollTop = area.scrollHeight;
+  updateScrollCue();
+  setTimeout(showEnd, 1000);
+}
+
+function showEnd() {
+  document.getElementById('input-bar').style.display = 'none';
+
+  const endBanner = document.createElement('div');
+  endBanner.className = 'end-banner';
+  endBanner.innerHTML =
+    '<div class="end-check">' +
+      '<svg width="16" height="16" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M7 14L12 19L21 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>' +
+    '</div>' +
+    '<div class="end-banner-text">' +
+      '<div class="end-title">Conversation complete</div>' +
+      '<div class="end-sub">Please click "continue" below<br>to finish the survey.</div>' +
+    '</div>';
+
+  document.querySelector('.phone-inner').appendChild(endBanner);
+
+  // Banner shrinks the message area; keep the thank-you in view.
+  const area = document.getElementById('messages');
+  area.scrollTop = area.scrollHeight;
+  updateScrollCue();
+}
+
+function init() {
+  const existingEnd = document.querySelector('.end-banner');
+  if (existingEnd) existingEnd.remove();
+
+  const messages = document.getElementById('messages');
+  messages.innerHTML = '';
+
+  document.getElementById('input-bar').style.display = '';
+  document.getElementById('quick-replies').style.display = 'none';
+  document.getElementById('text-row').style.display = 'flex';
+  document.getElementById('text-input').value = '';
+  document.getElementById('send-btn').disabled = false;
+  updateSendState();
+
+  variant = VARIANTS[0];
+  step = 0;
+  lastUserRow = null;
+
+  document.getElementById('status-time').textContent = getTime().replace(/\s?[AP]M/i, '');
+
+  const divider = document.createElement('div');
+  divider.className = 'time-divider';
+  divider.textContent = 'Text Message \u00b7 Today ' + getTime();
+  messages.appendChild(divider);
+
+  setTimeout(() => {
+    addBubble(variant.opening, 'them', 1000).then(() => {
+      step = 1;
+      setQuickReplies(['A', 'B', 'C']);
+    });
+  }, 600);
+}
+
+function startConversation() {
+  const overlay = document.getElementById('intro-overlay');
+  overlay.classList.add('hidden');
+  setTimeout(() => overlay.remove(), 300);
+  init();
+}
+
+document.getElementById('text-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') handleSend();
+});
+document.getElementById('text-input').addEventListener('input', updateSendState);
+document.getElementById('messages').addEventListener('scroll', updateScrollCue);
+window.addEventListener('resize', updateScrollCue);
+</script>
+</body>
+</html>
